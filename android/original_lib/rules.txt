@@ -1,0 +1,3 @@
+keep com.google.android.gms.gcm.**
+keep com.google.android.gms.iid.**
+keep com.google.android.gms.common.**

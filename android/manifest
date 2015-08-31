@@ -1,0 +1,19 @@
+#
+# this is your module manifest and used by Titanium
+# during compilation, packaging, distribution, etc.
+#
+version: 1.0.0
+apiversion: 2
+architectures: armeabi armeabi-v7a x86
+description: TiGCM
+author: Alfred Eriksson
+license: Specify your license
+copyright: Copyright (c) 2015 by Hyperlab AB
+
+# these should not be edited
+name: TiGCM
+moduleid: se.hyperlab.tigcm
+guid: d4f8033d-0355-408b-b4ea-e8f44fb8cf39
+platform: android
+minsdk: 4.1.0.GA
+respackage: com.google.android.gms
