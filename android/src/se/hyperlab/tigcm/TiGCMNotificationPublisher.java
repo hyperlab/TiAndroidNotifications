@@ -39,10 +39,19 @@ public class TiGCMNotificationPublisher extends BroadcastReceiver {
       Log.e(TAG, "Resource not found; make sure it's in platform/android/res/drawable");
     }
 
+    int color = 0;
+
+    try {
+      color = context.getResources().getColor(TiRHelper.getApplicationResource("color.notification_icon_background"));
+    } catch (TiRHelper.ResourceNotFoundException ex) {
+      Log.e(TAG, "Resource not found; make sure it's in platform/android/res/values");
+    }
+
     NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(context)
       .setSmallIcon(appIcon)
       .setAutoCancel(true)
-      .setContentIntent(pendingIntent);
+      .setContentIntent(pendingIntent)
+      .setColor(color);
 
     if(data.containsKey(TiGCMModule.PROPERTY_NOTIFICATION_TITLE)) {
       notificationBuilder.setContentTitle(data.get(TiGCMModule.PROPERTY_NOTIFICATION_TITLE).toString());

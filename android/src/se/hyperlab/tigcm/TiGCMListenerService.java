@@ -52,10 +52,19 @@ public class TiGCMListenerService extends GcmListenerService {
       Log.e(TAG, "Resource not found; make sure it's in platform/android/res/drawable");
     }
 
+    int color = 0;
+
+    try {
+      color = getResources().getColor(TiRHelper.getApplicationResource("color.notification_icon_background"));
+    } catch (TiRHelper.ResourceNotFoundException ex) {
+      Log.e(TAG, "Resource not found; make sure it's in platform/android/res/values");
+    }
+
     NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this)
       .setSmallIcon(appIcon)
       .setAutoCancel(true)
-      .setContentIntent(pendingIntent);
+      .setContentIntent(pendingIntent)
+      .setColor(color);
 
     if(data.containsKey(TiGCMModule.PROPERTY_NOTIFICATION_TITLE)) {
       notificationBuilder.setContentTitle(data.getString(TiGCMModule.PROPERTY_NOTIFICATION_TITLE));
