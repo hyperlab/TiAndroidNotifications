@@ -37,6 +37,7 @@
         <service android:name="se.hyperlab.tigcm.TiGCMRegistrationIntentService" android:exported="false">
         </service>
         <activity android:name="se.hyperlab.tigcm.TiGCMNotificationActivity" />
+        <receiver android:name="se.hyperlab.tigcm.TiGCMNotificationPublisher" />
 			</application>
 		</manifest>
 	</android>

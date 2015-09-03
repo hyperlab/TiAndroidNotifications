@@ -17,8 +17,11 @@ import org.appcelerator.kroll.common.TiConfig;
 import org.appcelerator.kroll.KrollDict;
 import org.appcelerator.kroll.KrollFunction;
 import org.appcelerator.kroll.KrollModule;
+import org.appcelerator.titanium.util.TiConvert;
 
 import android.app.Activity;
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -46,6 +49,8 @@ public class TiGCMModule extends KrollModule
   public static final String PROPERTY_INTENT_EXTRA_KEY = "notification";
   public static final String PROPERTY_NOTIFICATION_TITLE = "title";
   public static final String PROPERTY_NOTIFICATION_CONTENT = "message";
+  public static final String PROPERTY_NOTIFICATION_DATA = "data";
+  public static final String PROPERTY_NOTIFICATION_COUNTER = "ntf_counter";
   public static final String PROPERTY_PENDING_DATA = "pending_data";
 
   private static final int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
@@ -77,6 +82,10 @@ public class TiGCMModule extends KrollModule
   public static void onAppCreate(TiApplication app)
   {
     Log.d(TAG, "inside onAppCreate");
+
+    if(!app.getAppProperties().hasProperty(PROPERTY_NOTIFICATION_COUNTER)) {
+      app.getAppProperties().setInt(PROPERTY_NOTIFICATION_COUNTER, 0);
+    }
   }
 
   @Kroll.method
@@ -189,6 +198,46 @@ public class TiGCMModule extends KrollModule
     } else {
       return null;
     }
+  }
+
+  @Kroll.method
+  public void clearNotifications() {
+    TiApplication app = TiApplication.getInstance();
+
+    int ntfCount = app.getAppProperties().getInt(PROPERTY_NOTIFICATION_COUNTER, 0);
+
+    Log.d(TAG, "Clearing " + ntfCount + " notifications");
+
+    if(ntfCount > 0) {
+      Intent intent = new Intent(app.getApplicationContext(), TiGCMNotificationPublisher.class);
+      for(int i = 0; i < ntfCount; i++) {
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(app.getApplicationContext(), i, intent, PendingIntent.FLAG_ONE_SHOT);
+        AlarmManager alarmManager = (AlarmManager)app.getApplicationContext().getSystemService(Context.ALARM_SERVICE);
+        alarmManager.cancel(pendingIntent);
+        pendingIntent.cancel();
+      }
+
+      app.getAppProperties().setInt(PROPERTY_NOTIFICATION_COUNTER, 0);
+    }
+  }
+
+  @Kroll.method
+  public void scheduleNotification(HashMap data) {
+    TiApplication app = TiApplication.getInstance();
+
+    long time = (long)TiConvert.toDouble(data.get("time"));
+    int ntfId = app.getAppProperties().getInt(PROPERTY_NOTIFICATION_COUNTER, 0);
+
+    Log.d(TAG, "Scheduling notification " + ntfId + " at " + time);
+    
+    Intent intent = new Intent(app.getApplicationContext(), TiGCMNotificationPublisher.class);
+    intent.putExtra(PROPERTY_NOTIFICATION_DATA, data);
+    PendingIntent pendingIntent = PendingIntent.getBroadcast(app.getApplicationContext(), ntfId, intent, PendingIntent.FLAG_ONE_SHOT);
+
+    AlarmManager alarmManager = (AlarmManager)app.getApplicationContext().getSystemService(Context.ALARM_SERVICE);
+    alarmManager.set(AlarmManager.RTC_WAKEUP, time, pendingIntent);
+
+    app.getAppProperties().setInt(PROPERTY_NOTIFICATION_COUNTER, ntfId+1);
   }
 
 }
