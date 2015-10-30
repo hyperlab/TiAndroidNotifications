@@ -8,26 +8,19 @@
  */
 package se.hyperlab.tigcm;
 
-import java.util.HashMap;
-
 import org.appcelerator.titanium.TiApplication;
 import org.appcelerator.kroll.annotations.Kroll;
 import org.appcelerator.kroll.common.Log;
-import org.appcelerator.kroll.common.TiConfig;
 import org.appcelerator.kroll.KrollDict;
 import org.appcelerator.kroll.KrollFunction;
 import org.appcelerator.kroll.KrollModule;
-import org.appcelerator.titanium.util.TiConvert;
 
 import android.app.Activity;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.os.Bundle;
-import android.support.v4.content.LocalBroadcastManager;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
@@ -35,209 +28,224 @@ import com.google.android.gms.common.GooglePlayServicesUtil;
 import org.json.JSONObject;
 import org.json.JSONException;
 
+import java.util.HashMap;
+
 
 @Kroll.module(name="TiGCM", id="se.hyperlab.tigcm")
 public class TiGCMModule extends KrollModule
 {
-  private static final String TAG = "TiGCMModule";
+    private static final String TAG = "TiGCMModule";
 
-  public static final String PROPERTY_DEVICE_TOKEN = "deviceToken";
-  public static final String INTENT_FILTER_REGISTRATION_COMPLETE = "registrationComplete";
-  public static final String PROPERTY_MESSAGE = "message";
-  public static final String PROPERTY_REGISTER = "register";
-  public static final String PROPERTY_SENDER_ID = "GCM_sender_id";
-  public static final String PROPERTY_INTENT_EXTRA_KEY = "notification";
-  public static final String PROPERTY_NOTIFICATION_TITLE = "title";
-  public static final String PROPERTY_NOTIFICATION_CONTENT = "message";
-  public static final String PROPERTY_NOTIFICATION_DATA = "data";
-  public static final String PROPERTY_NOTIFICATION_COUNTER = "ntf_counter";
-  public static final String PROPERTY_PENDING_DATA = "pending_data";
+    private static final String KEY_DEVICE_TOKEN = "token";
+    private static final String KEY_DATA = "data";
+    private static final String KEY_ERROR = "error";
 
-  private static final int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
+    public static final String NTF_KEY_TITLE = "title";
+    public static final String NTF_KEY_CONTENT = "message";
+    public static final String NTF_KEY_DATA = KEY_DATA;
 
-  private BroadcastReceiver registrationBroadcastReceiver;
+    public static final String PROPERTY_SENDER_ID = "TiGCM.senderId";
+    public static final String PROPERTY_PENDING_DATA = "TiGCM.pendingData";
 
-  private static KrollFunction messageCallback;
-  private static KrollFunction registerCallback;
+    private static final String KEY_ERROR_CALLBACK = "onError";
+    private static final String KEY_MESSAGE_CALLBACK = "onMessage";
+    private static final String KEY_REGISTER_CALLBACK = "onRegister";
 
-  private static JSONObject launchData = null;
+    private static final String PROPERTY_NOTIFICATION_DATA = "data";
+    private static final String PROPERTY_NOTIFICATION_COUNTER = "TiGCM.ntfCounter";
 
-  private static TiGCMModule instance = null;
+    private static final int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
 
-  public static TiGCMModule getInstance() {
-    return instance;
-  }
+    private static KrollFunction errorCallback;
+    private static KrollFunction messageCallback;
+    private static KrollFunction registerCallback;
 
-  public TiGCMModule()
-  {
-    super();
+    private static String launchData = null;
 
-    messageCallback = null;
-    registerCallback = null;
+    private static TiGCMModule instance = null;
 
-    instance = this;
-  }
-
-  @Kroll.onAppCreate
-  public static void onAppCreate(TiApplication app)
-  {
-    Log.d(TAG, "inside onAppCreate");
-
-    if(!app.getAppProperties().hasProperty(PROPERTY_NOTIFICATION_COUNTER)) {
-      app.getAppProperties().setInt(PROPERTY_NOTIFICATION_COUNTER, 0);
-    }
-  }
-
-  @Kroll.method
-  public void registerForPushNotifications(Object arg) {
-    if(TiApplication.getInstance().getAppProperties().hasProperty(PROPERTY_PENDING_DATA)) {
-      try {
-        launchData = new JSONObject(TiApplication.getInstance().getAppProperties().getString(PROPERTY_PENDING_DATA, ""));
-      } catch (JSONException e) {
-        Log.d(TAG, "Failed to populate launchData.");
-      }
-      Log.d(TAG, "Get data from props: " + launchData);
-      TiApplication.getInstance().getAppProperties().removeProperty(PROPERTY_PENDING_DATA);
+    public static TiGCMModule getInstance() {
+        return instance;
     }
 
-    HashMap<String, Object> options = (HashMap<String, Object>) arg;
-    Object message = options.get(PROPERTY_MESSAGE);
-    Object register = options.get(PROPERTY_REGISTER);
+    public TiGCMModule()
+    {
+        super();
 
-    if(message instanceof KrollFunction) {
-      Log.d(TAG, "Setting message callback");
-      messageCallback = (KrollFunction) message;
-    }
-    if(register instanceof KrollFunction) {
-      Log.d(TAG, "Setting register callback");
-      registerCallback = (KrollFunction) register;
+        messageCallback = null;
+        registerCallback = null;
+        errorCallback = null;
+
+        instance = this;
     }
 
-    registrationBroadcastReceiver = new BroadcastReceiver() {
-      @Override
-      public void onReceive(Context context, Intent intent) {
-        Log.i(TAG, "Registration complete");
-      }
-    };
-    
-    if (checkPlayServices(TiApplication.getAppCurrentActivity())) {
-      Intent intent = new Intent(TiApplication.getInstance().getApplicationContext(), TiGCMRegistrationIntentService.class);
-      TiApplication.getInstance().startService(intent);
-    }
-  }
-
-  @Override
-  public void onResume(Activity activity) {
-      super.onResume(activity);
-      LocalBroadcastManager.getInstance(TiApplication.getInstance().getApplicationContext()).registerReceiver(registrationBroadcastReceiver, new IntentFilter(INTENT_FILTER_REGISTRATION_COMPLETE));
-  }
-
-  @Override
-  public void onPause(Activity activity) {
-      LocalBroadcastManager.getInstance(TiApplication.getInstance().getApplicationContext()).unregisterReceiver(registrationBroadcastReceiver);
-      super.onPause(activity);
-  }
-
-  private boolean checkPlayServices(Activity activity) {
-    int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(TiApplication.getInstance().getApplicationContext());
-    if (resultCode != ConnectionResult.SUCCESS) {
-        if (GooglePlayServicesUtil.isUserRecoverableError(resultCode)) {
-            GooglePlayServicesUtil.getErrorDialog(resultCode, activity, PLAY_SERVICES_RESOLUTION_REQUEST).show();
-        } else {
-            Log.i(TAG, "This device is not supported.");
-            TiApplication.getAppCurrentActivity().finish();
+    @Kroll.onAppCreate
+    public static void onAppCreate(TiApplication app)
+    {
+        if(!app.getAppProperties().hasProperty(PROPERTY_NOTIFICATION_COUNTER)) {
+            app.getAppProperties().setInt(PROPERTY_NOTIFICATION_COUNTER, 0);
         }
-        return false;
     }
-    return true;
-  }
 
-  public void onRegister(String token) {
-    Log.d(TAG, "Fire register callback");
-    if(registerCallback != null) {
-      HashMap data = new HashMap();
-      data.put(PROPERTY_DEVICE_TOKEN, token);
-      registerCallback.call(getKrollObject(), data);
+    @Kroll.method
+    public void registerForPushNotifications(KrollDict options) {
+        if(TiApplication.getInstance().getAppProperties().hasProperty(PROPERTY_PENDING_DATA)) {
+            launchData = TiApplication.getInstance().getAppProperties().getString(PROPERTY_PENDING_DATA, "");
+            Log.d(TAG, "Get data from props: " + launchData);
+            TiApplication.getInstance().getAppProperties().removeProperty(PROPERTY_PENDING_DATA);
+        }
+
+        if (options.containsKey(KEY_ERROR_CALLBACK)) {
+            Object error = options.get(KEY_ERROR_CALLBACK);
+            if (error instanceof KrollFunction) {
+                Log.d(TAG, "Setting error callback");
+                errorCallback = (KrollFunction) error;
+            }
+        }
+
+        if(options.containsKey(KEY_REGISTER_CALLBACK)) {
+            Object register = options.get(KEY_REGISTER_CALLBACK);
+            if(register instanceof KrollFunction) {
+                Log.d(TAG, "Setting register callback");
+                registerCallback = (KrollFunction) register;
+            }
+        }
+
+        if(options.containsKey(KEY_MESSAGE_CALLBACK)) {
+            Object message = options.get(KEY_MESSAGE_CALLBACK);
+            if(message instanceof KrollFunction) {
+                Log.d(TAG, "Setting message callback");
+                messageCallback = (KrollFunction) message;
+
+                if(launchData != null) {
+                    Log.d(TAG, "Have pending data");
+                    fireMessage(getData(), false);
+                }
+            }
+        }
+
+        if (checkPlayServices(TiApplication.getAppCurrentActivity())) {
+            Intent intent = new Intent(TiApplication.getInstance().getApplicationContext(), RegistrationIntentService.class);
+            TiApplication.getInstance().startService(intent);
+        }
     }
-  }
 
-  public static JSONObject bundleToJSON(Bundle source) {
-    JSONObject output = new JSONObject();
-    if(source != null) {
-      for(String key : source.keySet()) {
+    private boolean checkPlayServices(Activity activity) {
+        int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(TiApplication.getInstance().getApplicationContext());
+        if (resultCode != ConnectionResult.SUCCESS) {
+            if (GooglePlayServicesUtil.isUserRecoverableError(resultCode)) {
+                GooglePlayServicesUtil.getErrorDialog(resultCode, activity, PLAY_SERVICES_RESOLUTION_REQUEST).show();
+            } else {
+                Log.i(TAG, "This device is not supported.");
+                TiApplication.getAppCurrentActivity().finish();
+            }
+            return false;
+        }
+        return true;
+    }
+
+    private static HashMap<String, Object> stringToHashMap(String source) {
+        JSONObject jsonData;
+        KrollDict data = null;
         try {
-          output.put(key, source.get(key));
+            jsonData = new JSONObject(source);
+            data = new KrollDict(jsonData);
         } catch(JSONException e) {
-          Log.d(TAG, "Failed to set " + key + " in bundleToJSON.");
+            Log.d("stringToKrollDict", "Failed to convert string to KrollDict");
         }
-      }
+
+        return data;
     }
 
-    return output;
-  }
+    public static HashMap<String, Object> bundleToHashMap(Bundle source) {
+        HashMap<String, Object> result = new HashMap<String, Object>();
+        if(source != null) {
+            for(String key : source.keySet()) {
+                result.put(key, source.get(key));
+            }
+        }
 
-  public void onMessage(Bundle data) {
-    Log.d(TAG, "Fire message callback");
-    if(messageCallback != null) {
-      messageCallback.call(getKrollObject(), (HashMap)KrollDict.fromJSON(bundleToJSON(data)));
-      Log.d(TAG, "MessageCallback was called");
+        return result;
     }
-  }
 
-  public void setData(JSONObject data) {
-    Log.d(TAG, "Set data");
-    launchData = data;
-  }
-
-  @Kroll.method
-  public HashMap getAndClearData() {
-    if(launchData != null) {
-      JSONObject data = launchData;
-      launchData = null;
-      return (HashMap)KrollDict.fromJSON(data);
-    } else {
-      return null;
+    public void fireError(String error) {
+        Log.d(TAG, "Fire error callback");
+        if (errorCallback != null) {
+            KrollDict e = new KrollDict();
+            e.put(KEY_ERROR, error);
+            errorCallback.call(getKrollObject(), e);
+            Log.d(TAG, "onError was called");
+        }
     }
-  }
 
-  @Kroll.method
-  public void clearNotifications() {
-    TiApplication app = TiApplication.getInstance();
+    public void fireRegister(String token) {
+        Log.d(TAG, "Fire register callback");
+        if(registerCallback != null) {
+            KrollDict data = new KrollDict();
+            data.put(KEY_DEVICE_TOKEN, token);
+            registerCallback.call(getKrollObject(), data);
+            Log.d(TAG, "onRegister was called");
+        }
+    }
 
-    int ntfCount = app.getAppProperties().getInt(PROPERTY_NOTIFICATION_COUNTER, 0);
+    public void fireMessage(HashMap<String, Object> message, boolean appInForeground) {
+        Log.d(TAG, "Fire message callback");
+        if(messageCallback != null) {
+            HashMap<String, Object> push = new HashMap<String, Object>();
+            push.put("appInForeground", appInForeground);
+            push.put(KEY_DATA, message);
+            messageCallback.call(getKrollObject(), push);
+            Log.d(TAG, "onMessage was called");
+        }
+    }
 
-    Log.d(TAG, "Clearing " + ntfCount + " notifications");
+    private HashMap<String, Object> getData() {
+        if(launchData != null) {
+            HashMap<String, Object> data = stringToHashMap(launchData);
+            launchData = null;
 
-    if(ntfCount > 0) {
-      Intent intent = new Intent(app.getApplicationContext(), TiGCMNotificationPublisher.class);
-      for(int i = 0; i < ntfCount; i++) {
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(app.getApplicationContext(), i, intent, PendingIntent.FLAG_ONE_SHOT);
+            return data;
+        } else {
+            return null;
+        }
+    }
+
+    @Kroll.method
+    public void clearSchedule() {
+        TiApplication app = TiApplication.getInstance();
+
+        int ntfCount = app.getAppProperties().getInt(PROPERTY_NOTIFICATION_COUNTER, 0);
+
+        Log.d(TAG, "Clearing " + ntfCount + " notifications");
+
+        if(ntfCount > 0) {
+            Intent intent = new Intent(app.getApplicationContext(), NotificationPublisher.class);
+            for(int i = 0; i < ntfCount; i++) {
+                PendingIntent pendingIntent = PendingIntent.getBroadcast(app.getApplicationContext(), i, intent, PendingIntent.FLAG_ONE_SHOT);
+                AlarmManager alarmManager = (AlarmManager)app.getApplicationContext().getSystemService(Context.ALARM_SERVICE);
+                alarmManager.cancel(pendingIntent);
+                pendingIntent.cancel();
+            }
+
+            app.getAppProperties().setInt(PROPERTY_NOTIFICATION_COUNTER, 0);
+        }
+    }
+
+    @Kroll.method
+    public void schedule(long time, HashMap data) {
+        TiApplication app = TiApplication.getInstance();
+        int ntfId = app.getAppProperties().getInt(PROPERTY_NOTIFICATION_COUNTER, 0);
+
+        Log.d(TAG, "Scheduling notification " + ntfId + " at " + time);
+
+        Intent intent = new Intent(app.getApplicationContext(), NotificationPublisher.class);
+        intent.putExtra(PROPERTY_NOTIFICATION_DATA, data);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(app.getApplicationContext(), ntfId, intent, PendingIntent.FLAG_ONE_SHOT);
+
         AlarmManager alarmManager = (AlarmManager)app.getApplicationContext().getSystemService(Context.ALARM_SERVICE);
-        alarmManager.cancel(pendingIntent);
-        pendingIntent.cancel();
-      }
+        alarmManager.set(AlarmManager.RTC_WAKEUP, time, pendingIntent);
 
-      app.getAppProperties().setInt(PROPERTY_NOTIFICATION_COUNTER, 0);
+        app.getAppProperties().setInt(PROPERTY_NOTIFICATION_COUNTER, ntfId+1);
     }
-  }
-
-  @Kroll.method
-  public void scheduleNotification(HashMap data) {
-    TiApplication app = TiApplication.getInstance();
-
-    long time = (long)TiConvert.toDouble(data.get("time"));
-    int ntfId = app.getAppProperties().getInt(PROPERTY_NOTIFICATION_COUNTER, 0);
-
-    Log.d(TAG, "Scheduling notification " + ntfId + " at " + time);
-    
-    Intent intent = new Intent(app.getApplicationContext(), TiGCMNotificationPublisher.class);
-    intent.putExtra(PROPERTY_NOTIFICATION_DATA, data);
-    PendingIntent pendingIntent = PendingIntent.getBroadcast(app.getApplicationContext(), ntfId, intent, PendingIntent.FLAG_ONE_SHOT);
-
-    AlarmManager alarmManager = (AlarmManager)app.getApplicationContext().getSystemService(Context.ALARM_SERVICE);
-    alarmManager.set(AlarmManager.RTC_WAKEUP, time, pendingIntent);
-
-    app.getAppProperties().setInt(PROPERTY_NOTIFICATION_COUNTER, ntfId+1);
-  }
 
 }
