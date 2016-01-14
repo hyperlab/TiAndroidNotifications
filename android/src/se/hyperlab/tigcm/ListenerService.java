@@ -28,8 +28,6 @@ public class ListenerService extends GcmListenerService {
             }
         }
 
-        Intent intent = new Intent(this, NotificationPublisher.class);
-        intent.putExtra(TiGCMModule.NTF_KEY_DATA, data);
-        sendBroadcast(intent);
+        NotificationPublisher.createNotification(this, data);
     }
 }
