@@ -5,10 +5,10 @@
 version: 1.2
 apiversion: 2
 architectures: armeabi armeabi-v7a x86
-description: TiGCM
+description: Titanium Android Notifications module
 author: Alfred Eriksson
-license: Specify your license
-copyright: Copyright (c) 2015 by Hyperlab AB
+license: The MIT License (MIT)
+copyright: Copyright (c) 2016 by Hyperlab AB
 
 # these should not be edited
 name: TiGCM
