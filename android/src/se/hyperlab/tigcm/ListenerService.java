@@ -20,8 +20,15 @@ public class ListenerService extends GcmListenerService {
         Log.d(TAG, "Received message from: " + from);
         HashMap<String, Object> data = TiGCMModule.bundleToHashMap(rawData);
 
+        boolean forceCreateNotification = false;
+        if (data.containsKey("forceCreateNotification")) {
+            if (data.get("forceCreateNotification").equals("true")) {
+                forceCreateNotification = true;
+            }
+        }
+
         TiGCMModule module = TiGCMModule.getInstance();
-        if(module != null) {
+        if(module != null && !forceCreateNotification) {
             if(KrollRuntime.isInitialized() && TiApplication.isCurrentActivityInForeground()) {
                 module.fireMessage(data, true);
                 return;
