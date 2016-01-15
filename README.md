@@ -10,6 +10,14 @@ Add the module to you project, the latest version of the module can be found ins
 
 ## Changes
 
+**1.2**
+- Add documentation
+- Add flag to force create notification even though the app is open
+
+**1.1.2**
+- Fix bug that notifications sometimes weren't created
+- Don't create empty notifications
+
 **1.0**
 - Initial release
 
