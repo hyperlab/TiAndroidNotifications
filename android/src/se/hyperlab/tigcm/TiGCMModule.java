@@ -43,6 +43,8 @@ public class TiGCMModule extends KrollModule
     public static final String NTF_KEY_TITLE = "title";
     public static final String NTF_KEY_CONTENT = "message";
     public static final String NTF_KEY_DATA = KEY_DATA;
+    public static final String NTF_KEY_COLOR = "color";
+    public static final String NTF_KEY_NUMBER = "number";
 
     public static final String PROPERTY_SENDER_ID = "TiGCM.senderId";
     public static final String PROPERTY_PENDING_DATA = "TiGCM.pendingData";

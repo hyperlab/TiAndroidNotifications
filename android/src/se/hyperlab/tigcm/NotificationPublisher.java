@@ -5,6 +5,7 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import org.appcelerator.titanium.util.TiRHelper;
 import android.support.v4.app.NotificationCompat;
 
@@ -47,26 +48,36 @@ public class NotificationPublisher extends BroadcastReceiver {
                 .setAutoCancel(true)
                 .setContentIntent(pendingIntent);
 
-        int color = 0;
-
-        try {
-            color = TiRHelper.getApplicationResource("color.notification_icon_background");
-        } catch (TiRHelper.ResourceNotFoundException ex) {
-            Log.e(TAG, "Resource color.notification_icon_background not found");
+        // Color
+        if (data.containsKey(TiGCMModule.NTF_KEY_COLOR)) {
+            notificationBuilder.setColor(Color.parseColor(data.get(TiGCMModule.NTF_KEY_COLOR).toString()));
+        } else {
+            try {
+                notificationBuilder.setColor(
+                    context.getResources().getColor(
+                        TiRHelper.getApplicationResource("color.notification_icon_background")
+                    )
+                );
+            } catch (TiRHelper.ResourceNotFoundException ex) {
+                Log.e(TAG, "Resource color.notification_icon_background not found");
+            }
         }
 
-        if (color != 0) {
-            notificationBuilder.setColor(context.getResources().getColor(color));
-        }
-
+        // Title
         if (data.containsKey(TiGCMModule.NTF_KEY_TITLE)) {
             notificationBuilder.setContentTitle(data.get(TiGCMModule.NTF_KEY_TITLE).toString());
             empty = false;
         }
 
+        // Text
         if (data.containsKey(TiGCMModule.NTF_KEY_CONTENT)) {
             notificationBuilder.setContentText(data.get(TiGCMModule.NTF_KEY_CONTENT).toString());
             empty = false;
+        }
+
+        // Number
+        if (data.containsKey(TiGCMModule.NTF_KEY_NUMBER)) {
+            notificationBuilder.setNumber(Integer.parseInt(data.get(TiGCMModule.NTF_KEY_NUMBER).toString()));
         }
 
         if (!empty) {
