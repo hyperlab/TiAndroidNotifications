@@ -6,6 +6,7 @@ import android.os.Bundle;
 import org.appcelerator.kroll.common.Log;
 
 import org.appcelerator.titanium.TiApplication;
+import org.appcelerator.kroll.KrollDict;
 
 import java.util.HashMap;
 
@@ -26,8 +27,10 @@ public class NotificationActivity extends Activity {
         if(module != null) {
             module.fireMessage(data, false);
         } else {
-            TiApplication.getInstance().getAppProperties().setString(TiGCMModule.PROPERTY_PENDING_DATA, data.toString());
-            Log.d(TAG, "Saving data in props: " + data.toString());
+            KrollDict kdata = new KrollDict(data);
+
+            TiApplication.getInstance().getAppProperties().setString(TiGCMModule.PROPERTY_PENDING_DATA, kdata.toString());
+            Log.d(TAG, "Saving data in props: " + kdata.toString());
         }
 
         String pkg = instance.getApplicationContext().getPackageName();
